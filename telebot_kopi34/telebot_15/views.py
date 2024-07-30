@@ -73,14 +73,14 @@ def answer(message):
         user_state_data[f"{chat_id}_order"] = { 'name': x1['name'], 'description': x1["description"], 'cost': x1["value"], 'messages': []}
 
         keyboard = telebot.types.InlineKeyboardMarkup()
-        button_save = telebot.types.InlineKeyboardButton(text=f"Оплатить!", callback_data=f"pay")
-        button_save2 = telebot.types.InlineKeyboardButton(text=f"Добавить описание!", callback_data=f"add_description")
+        button_save = telebot.types.InlineKeyboardButton(text="Оплатить!", callback_data="pay")
+        button_save2 = telebot.types.InlineKeyboardButton(text="Добавить описание!", callback_data="add_description")
         keyboard.add(button_save, button_save2)
 
-        bot.send_message(chat_id, f"Данные получены!",  reply_markup=hideBoard)
-        bot.send_message(chat_id, f"Ваш заказ стоит: {x1["value"]}", reply_markup=keyboard) 
+        bot.send_message(chat_id, "Данные получены!",  reply_markup=hideBoard)
+        bot.send_message(chat_id, f'Ваш заказ стоит: {x1["value"]}', reply_markup=keyboard) 
     except Exception as e:      # works on python 3.x
-        user_state_data.pop(f"{chat_id}_order", None)
+        user_state_data.pop(f'{chat_id}_order', None)
         debugToLog(f'Error №1 - {str(e)}')
         bot.send_message(chat_id, str(e))
 
@@ -92,14 +92,14 @@ def save_btn(call):
         message_id = message.message_id  
         bot.edit_message_text(chat_id=chat_id, message_id=message_id, 
                              text='Вы выбрали оплату!')  
-        if f"{chat_id}_order" not in user_state_data:
+        if f'{chat_id}_order' not in user_state_data:
             raise Exception("Нужно начать по порядку с начала!")
-        prices = [LabeledPrice(label=f'{user_state_data[f"{message.chat.id}_order"]['name']}', amount=int(user_state_data[f"{chat_id}_order"]['cost'])*100)]
+        prices = [LabeledPrice(label=f'{user_state_data[f"{message.chat.id}_order"]["name"]}', amount=int(user_state_data[f"{chat_id}_order"]['cost'])*100)]
 
         bot.send_invoice(
             message.chat.id,  #chat_id
-            f'{user_state_data[f"{message.chat.id}_order"]['name']}', #title
-            f'{user_state_data[f"{message.chat.id}_order"]['description']}', #description
+            f'{user_state_data[f"{message.chat.id}_order"]["name"]}', #title
+            f'{user_state_data[f"{message.chat.id}_order"]["description"]}', #description
             'Kopi34.ru - sales', #invoice_payload
             PROVIDER_TOKEN, #provider_token
             'rub', #currency
@@ -115,7 +115,7 @@ def save_btn(call):
     try:
         message = call.message
         bot.edit_message_text(chat_id=message.chat.id, message_id=message.message_id, text="Выбор сделан!")
-        mesg = bot.send_message(message.chat.id, f'Опишите ваш заказ:', reply_markup=hideBoard)
+        mesg = bot.send_message(message.chat.id, 'Опишите ваш заказ:', reply_markup=hideBoard)
         bot.register_next_step_handler(mesg, loop5)
     except Exception as e:      # works on python 3.x
         debugToLog(f'Error №4 - {str(e)}')
@@ -136,7 +136,7 @@ def loop5(message):
         keyboard.add(button_save, button_change)
         print(user_state_data[f"{chat_id}_order"])
         
-        bot.send_message(message.chat.id, f'Выберите действие:', reply_markup=keyboard)
+        bot.send_message(message.chat.id, 'Выберите действие:', reply_markup=keyboard)
     except Exception as e:
         user_state_data.pop(f"{chat_id}_order", None)
         debugToLog(f'Error №5 - {str(e)}')
@@ -301,7 +301,7 @@ def clientId(message):
             x1 = ''
             x2 = 1
             for x in useOrders:
-                x1 += f'№{x2}; Цена: {x.cost}; Оплачено: {'Да' if x.payStatus else 'Нет'}; Готово: {'Да' if x.doneStatus else 'Нет'}.\n'
+                x1 += f'№{x2}; Цена: {x.cost}; Оплачено: {"Да" if x.payStatus else "Нет"}; Готово: {"Да" if x.doneStatus else "Нет"}.\n'
                 x2 += 1
             bot.send_message (message.chat.id, f'{x1}', parse_mode='html') 
         else:
@@ -393,7 +393,7 @@ def clientId(message):
                 print(useOrders)
                 x3 = ''
                 for x in useOrders:
-                    x3 += f'id: {x['id']}; Цена: {x['cost']}; Оплачено: {'Да' if x['payStatus'] else 'Нет'}; Готово: {'Да' if x['doneStatus'] else 'Нет'}.\n'
+                    x3 += f'id: {x["id"]}; Цена: {x["cost"]}; Оплачено: {"Да" if x["payStatus"] else "Нет"}; Готово: {"Да" if x["doneStatus"] else "Нет"}.\n'
 
                 bot.send_message(message.chat.id, x3) 
         else:
@@ -476,20 +476,19 @@ def loop2(message):
 @bot.message_handler(content_types=['text'])
 def func(message):
     try:
-        bot.send_message(message.chat.id, f'...', reply_markup=hideBoard)
+        bot.send_message(message.chat.id, '...', reply_markup=hideBoard)
         x1 = 0
         for x in goodsArray:
             if re.search(fr"{x[1]}", message.text, re.IGNORECASE):
 
                     keyboard = telebot.types.InlineKeyboardMarkup()
-                    button_save = telebot.types.InlineKeyboardButton(text=f"Подтвердить!", callback_data=f"{x[0]}")
+                    button_save = telebot.types.InlineKeyboardButton(text="Подтвердить!", callback_data=f'{x[0]}')
                     keyboard.add(button_save)
                     bot.send_message(message.chat.id, f'Вы хотите -  {x[2]}?', reply_markup=keyboard)
                     x1 = 1
                     break
 
         if x1 == 0:
-            logging.debug(f'{message.text}')
             bot.send_message(message.chat.id, 'Возможно допущена опечатка или в моей базе пока нет такого ТОВАРА!'
                                                 '\n/help - нажмите, если Вам нужна помощь!')
 
@@ -519,7 +518,7 @@ def clientId(call):
         bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="Выбор сделан!")
         keyboard = types.ReplyKeyboardMarkup(row_width=1)
         webApp = types.WebAppInfo(f'{goodsDict[call.data][2]}') 
-        one = types.KeyboardButton(text=f"Калькулятор {goodsDict[call.data][1]}", web_app=webApp)
+        one = types.KeyboardButton(text=f'Калькулятор {goodsDict[call.data][1]}', web_app=webApp)
         keyboard.add(one) 
         bot.send_message(message.chat.id, 'Нажмите на кнопку снизу для запуска:', parse_mode="Markdown", reply_markup=keyboard)
     except Exception as e:      # works on python 3.x
