@@ -93,7 +93,7 @@ def save_btn(call):
         chat_id = message.chat.id
         message_id = message.message_id  
         bot.edit_message_text(chat_id=chat_id, message_id=message_id, 
-                             text='Вы выбрали оплату!')  
+                             text='⚠️Оплата не работает на Компьютере, только на смартфоне⚠️!')  
         if f'{chat_id}_order' not in user_state_data:
             raise Exception("Оплата не работает на Компьютере, только на смартфоне!")
         prices = [LabeledPrice(label=f'{user_state_data[f"{message.chat.id}_order"]["name"]}', amount=int(user_state_data[f"{chat_id}_order"]['cost'])*100)]
