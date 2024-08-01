@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-s%ysv+1-5au=mw0prc-_)ii-)ul4i+lq6oazj!#+=!(2x(oq!e
 DEBUG = False
 
 # ALLOWED_HOSTS = ['*']
-ALLOWED_HOSTS = ['api.telegram.org']
+ALLOWED_HOSTS = ['api.telegram.org', 'telegram.org', 'telebot7.kopi34.ru', 'kopi34.ru']
 
 
 # Application definition
