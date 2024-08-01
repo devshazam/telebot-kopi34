@@ -26,7 +26,7 @@ ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
 LOG_NAME = os.getenv("LOG_NAME")
 
 bot = telebot.TeleBot(API_TOKEN)
-logging.basicConfig(filename=f'{LOG_NAME}.log', encoding='utf-8', level=logging.WARNING)
+logging.basicConfig(filename=f'{LOG_NAME}.log', encoding='utf-8', level=logging.WARNING, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 def debugToLog(text):
     logging.warning(f"{text}")
 
@@ -50,6 +50,8 @@ def index(request):
         bot.process_new_updates([update])
 
     return HttpResponse('<h1>Ты подключился!</h1>')
+
+
 
 
 
@@ -93,7 +95,7 @@ def save_btn(call):
         bot.edit_message_text(chat_id=chat_id, message_id=message_id, 
                              text='Вы выбрали оплату!')  
         if f'{chat_id}_order' not in user_state_data:
-            raise Exception("Нужно начать по порядку с начала!")
+            raise Exception("Оплата не работает на Компьютере, только на смартфоне!")
         prices = [LabeledPrice(label=f'{user_state_data[f"{message.chat.id}_order"]["name"]}', amount=int(user_state_data[f"{chat_id}_order"]['cost'])*100)]
 
         bot.send_invoice(
