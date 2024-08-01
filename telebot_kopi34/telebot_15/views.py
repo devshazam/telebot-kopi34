@@ -44,7 +44,7 @@ hideBoard = types.ReplyKeyboardRemove()  # if sent as reply_markup, will hide th
 # https://api.telegram.org/bot7397048375:AAFUc0nI6IQpsIgIWWW6ccU-gkgKSrLkMKQ/deleteWebhook?url=https://089e-80-90-179-8.ngrok-free.app/
 @csrf_exempt
 def index(request):
-    # bot.set_webhook('https://a392-80-90-179-8.ngrok-free.app/')
+    # bot.set_webhook('https://telebot7.kopi34.ru/')
     if request.method == "POST":
         update = telebot.types.Update.de_json(request.body.decode('utf-8'))
         bot.process_new_updates([update])
