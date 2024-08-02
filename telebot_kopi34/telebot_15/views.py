@@ -196,6 +196,55 @@ def got_payment(message):
 
 
 
+@bot.message_handler(commands=['diag'])
+def clientId(message):
+    try: 
+
+        bot.send_message(message.chat.id, '\n/contacts - вывод списка контактов и график работы'
+                                            '\n/set_state_item'
+                                            '\n/check_state_object') # Duplicate with a message that the user will now send his phone number to the bot (just in case, but this is not necessary)
+    except Exception as e:      # works on python 3.x
+        debugToLog(f'Error №d1 - {str(e)}')
+        bot.send_message(message.chat.id, str(e))  
+
+@bot.message_handler(commands=['set_state_item'])
+def clientId(message):
+    try: 
+        chat_id = message.chat.id
+        user_state_data[f"{chat_id}_order"] = { 'name': 'textName', 'description': 'textDescription', 'cost': 'textCost', 'messages': []}
+        user_state_data[f"1834_order"] = { 'name': 'textName', 'description': 'textDescription', 'cost': 'textCost', 'messages': []}
+        bot.send_message(message.chat.id, f'На данный момент объект user_state_data содержит элементов: {len(user_state_data)}')
+    except Exception as e:      # works on python 3.x
+        debugToLog(f'Error №d2 - {str(e)}')
+        bot.send_message(message.chat.id, str(e))  
+
+@bot.message_handler(commands=['check_state_object'])
+def clientId(message):
+    try: 
+        bot.send_message(message.chat.id, f'На данный момент объект user_state_data содержит элементов: {len(user_state_data)}')
+    except Exception as e:      # works on python 3.x
+        debugToLog(f'Error №d3 - {str(e)}')
+        bot.send_message(message.chat.id, str(e))  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # USER COMANDS:
 @bot.message_handler(commands=['start'])
