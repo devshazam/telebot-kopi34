@@ -87,7 +87,6 @@ def answer(message):
         bot.send_message(chat_id, "Данные получены!",  reply_markup=hideBoard)
         bot.send_message(chat_id, f'Ваш заказ стоит: {x1["value"]}', reply_markup=keyboard) 
     except Exception as e:      # works on python 3.x
-        cache.delete(f"{chat_id}_order")
         debugToLog(f'Error №1 - {str(e)}')
         bot.send_message(chat_id, str(e))
 
@@ -103,7 +102,7 @@ def save_btn(call):
         bot.register_next_step_handler(mesg, loop5)
     except Exception as e:
         debugToLog(f'Error №4 - {str(e)}')
-        cache.delete(f"{chat_id}_order")
+        
         bot.clear_step_handler_by_chat_id(message.chat.id)
         bot.send_message(message.chat.id, str(e))
 
@@ -126,7 +125,7 @@ def loop5(message):
         
         bot.send_message(message.chat.id, 'Выберите действие:', reply_markup=keyboard)
     except Exception as e:
-        cache.delete(f"{chat_id}_order")
+        
         debugToLog(f'Error №5 - {str(e)}')
         bot.send_message(message.chat.id, str(e))       
 
@@ -156,7 +155,7 @@ def save_btn(call):
             prices, #prices # True If you need to set up Shipping Fee
             start_parameter='kopi34_start_param',)
     except Exception as e:      # works on python 3.x
-        cache.delete(f"{chat_id}_order")
+        
         debugToLog(f'Error №3 - {str(e)}')
         bot.send_message(message.chat.id, str(e))
 
@@ -213,35 +212,16 @@ def got_payment(message):
 
 
 
-# @bot.message_handler(commands=['diag'])
-# def clientId(message):
-#     try: 
+@bot.message_handler(commands=['diag'])
+def clientId(message):
+    try: 
+        chat_id = message.chat.id
+        cached_data = cache.get(f'{chat_id}_order')
 
-#         bot.send_message(message.chat.id, '\n/contacts - вывод списка контактов и график работы'
-#                                             '\n/set_state_item'
-#                                             '\n/check_state_object') # Duplicate with a message that the user will now send his phone number to the bot (just in case, but this is not necessary)
-#     except Exception as e:      # works on python 3.x
-#         debugToLog(f'Error №d1 - {str(e)}')
-#         bot.send_message(message.chat.id, str(e))  
-
-# @bot.message_handler(commands=['set_state_item'])
-# def clientId(message):
-#     try: 
-#         chat_id = message.chat.id
-#         user_state_data[f"{chat_id}_order"] = { 'name': 'textName', 'description': 'textDescription', 'cost': 'textCost', 'messages': []}
-#         user_state_data[f"1834_order"] = { 'name': 'textName', 'description': 'textDescription', 'cost': 'textCost', 'messages': []}
-#         bot.send_message(message.chat.id, f'На данный момент объект user_state_data содержит элементов: {len(user_state_data)}')
-#     except Exception as e:      # works on python 3.x
-#         debugToLog(f'Error №d2 - {str(e)}')
-#         bot.send_message(message.chat.id, str(e))  
-
-# @bot.message_handler(commands=['check_state_object'])
-# def clientId(message):
-#     try: 
-#         bot.send_message(message.chat.id, f'На данный момент объект user_state_data содержит элементов: {len(user_state_data)}')
-#     except Exception as e:      # works on python 3.x
-#         debugToLog(f'Error №d3 - {str(e)}')
-#         bot.send_message(message.chat.id, str(e))  
+        bot.send_message(message.chat.id, f'На данный момент объект user_state_data содержит элементов: {json.dumps(cached_data)}')
+    except Exception as e:      # works on python 3.x
+        debugToLog(f'Error №d1 - {str(e)}')
+        bot.send_message(message.chat.id, str(e))  
 
 
 
