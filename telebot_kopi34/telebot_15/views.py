@@ -2,10 +2,13 @@ from django.shortcuts import HttpResponse
 from django.http import JsonResponse
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
+from django.core.cache import cache
 
 import telebot
 from telebot.types import LabeledPrice, ShippingOption
 from telebot import types # для указание типов
+
+# import redis
 
 from requests.auth import HTTPBasicAuth
 import json 
@@ -16,7 +19,6 @@ import logging
 
 from .config.goods import goodsArray, goodsDict
 from .models import Users, TeleOrders
-
 
 # CONFIG
 load_dotenv()
@@ -40,16 +42,17 @@ hideBoard = types.ReplyKeyboardRemove()  # if sent as reply_markup, will hide th
 
 
 
-# https://api.telegram.org/bot7397048375:AAFUc0nI6IQpsIgIWWW6ccU-gkgKSrLkMKQ/setWebhook?url=https://201e-80-90-179-8.ngrok-free.app/
+# https://api.telegram.org/bot7397048375:AAFUc0nI6IQpsIgIWWW6ccU-gkgKSrLkMKQ/setWebhook?url=https://bf06-80-90-179-8.ngrok-free.app/
 # https://api.telegram.org/bot7397048375:AAFUc0nI6IQpsIgIWWW6ccU-gkgKSrLkMKQ/deleteWebhook?url=https://089e-80-90-179-8.ngrok-free.app/
 @csrf_exempt
 def index(request):
-    # bot.set_webhook('https://telebot7.kopi34.ru/')
+    # bot.set_webhook('https://bf06-80-90-179-8.ngrok-free.app/')
     if request.method == "POST":
         update = telebot.types.Update.de_json(request.body.decode('utf-8'))
         bot.process_new_updates([update])
 
     return HttpResponse('<h1>Ты подключился!</h1>')
+ 
 
 
 
@@ -66,14 +69,16 @@ def index(request):
 
 
 
-@bot.message_handler(content_types="web_app_data") #получаем отправленные данные 
+
+@bot.message_handler(content_types="web_app_data")
 def answer(message):
     try:
         x1 = json.loads(message.web_app_data.data)
 
         chat_id = message.chat.id
-        user_state_data[f"{chat_id}_order"] = { 'name': x1['name'], 'description': x1["description"], 'cost': x1["value"], 'messages': []}
 
+        cache.set(f"{chat_id}_order", { 'name': x1['name'], 'description': x1["description"], 'cost': x1["value"], 'messages': []}, 3600)
+        
         keyboard = telebot.types.InlineKeyboardMarkup()
         button_save = telebot.types.InlineKeyboardButton(text="Оплатить!", callback_data="pay")
         button_save2 = telebot.types.InlineKeyboardButton(text="Добавить описание!", callback_data="add_description")
@@ -82,9 +87,50 @@ def answer(message):
         bot.send_message(chat_id, "Данные получены!",  reply_markup=hideBoard)
         bot.send_message(chat_id, f'Ваш заказ стоит: {x1["value"]}', reply_markup=keyboard) 
     except Exception as e:      # works on python 3.x
-        user_state_data.pop(f'{chat_id}_order', None)
+        cache.delete(f"{chat_id}_order")
         debugToLog(f'Error №1 - {str(e)}')
         bot.send_message(chat_id, str(e))
+
+
+
+@bot.callback_query_handler(func=lambda call: call.data == 'add_description')
+def save_btn(call):
+    try:
+        message = call.message
+        chat_id = message.chat.id
+        bot.edit_message_text(chat_id=message.chat.id, message_id=message.message_id, text="Выбор сделан!")
+        mesg = bot.send_message(message.chat.id, 'Опишите ваш заказ или добавьте файл:', reply_markup=hideBoard)
+        bot.register_next_step_handler(mesg, loop5)
+    except Exception as e:
+        debugToLog(f'Error №4 - {str(e)}')
+        cache.delete(f"{chat_id}_order")
+        bot.clear_step_handler_by_chat_id(message.chat.id)
+        bot.send_message(message.chat.id, str(e))
+
+def loop5(message):
+    try:
+        chat_id = message.chat.id
+        cached_data = cache.get(f'{chat_id}_order')
+        if cached_data is None:
+            raise Exception("Нужно начать по порядку с начала!")
+        cached_data['messages'].append(message.message_id)
+
+        cache.set(f"{chat_id}_order", cached_data, 3600)
+
+        keyboard = telebot.types.InlineKeyboardMarkup()
+        button_save = telebot.types.InlineKeyboardButton(text="Оплатить",
+                                                        callback_data='pay')
+        button_change = telebot.types.InlineKeyboardButton(text="Добавить описание или файл",
+                                                        callback_data='add_description')
+        keyboard.add(button_save, button_change)
+        
+        bot.send_message(message.chat.id, 'Выберите действие:', reply_markup=keyboard)
+    except Exception as e:
+        cache.delete(f"{chat_id}_order")
+        debugToLog(f'Error №5 - {str(e)}')
+        bot.send_message(message.chat.id, str(e))       
+
+
 
 @bot.callback_query_handler(func=lambda call: call.data == 'pay')
 def save_btn(call):
@@ -93,57 +139,26 @@ def save_btn(call):
         chat_id = message.chat.id
         message_id = message.message_id  
         bot.edit_message_text(chat_id=chat_id, message_id=message_id, 
-                             text='⚠️Оплата не работает на Компьютере, только на смартфоне⚠️!')  
-        if f'{chat_id}_order' not in user_state_data:
+                             text='⚠️Оплата работает только на смартфоне⚠️!')  
+        cached_data = cache.get(f'{chat_id}_order')
+        if cached_data is None:
             raise Exception("Оплата не работает на Компьютере, только на смартфоне!")
-        prices = [LabeledPrice(label=f'{user_state_data[f"{message.chat.id}_order"]["name"]}', amount=int(user_state_data[f"{chat_id}_order"]['cost'])*100)]
+        
+        prices = [LabeledPrice(label=f'{cached_data["name"]}', amount=int(cached_data['cost'])*100)]
 
         bot.send_invoice(
             message.chat.id,  #chat_id
-            f'{user_state_data[f"{message.chat.id}_order"]["name"]}', #title
-            f'{user_state_data[f"{message.chat.id}_order"]["description"]}', #description
+            f'{cached_data["name"]}', #title
+            f'{cached_data["description"]}', #description
             'Kopi34.ru - sales', #invoice_payload
             PROVIDER_TOKEN, #provider_token
             'rub', #currency
             prices, #prices # True If you need to set up Shipping Fee
-            start_parameter='kpi34_start_param',)
+            start_parameter='kopi34_start_param',)
     except Exception as e:      # works on python 3.x
-        user_state_data.pop(f"{chat_id}_order", None)
+        cache.delete(f"{chat_id}_order")
         debugToLog(f'Error №3 - {str(e)}')
         bot.send_message(message.chat.id, str(e))
-
-@bot.callback_query_handler(func=lambda call: call.data == 'add_description')
-def save_btn(call):
-    try:
-        message = call.message
-        bot.edit_message_text(chat_id=message.chat.id, message_id=message.message_id, text="Выбор сделан!")
-        mesg = bot.send_message(message.chat.id, 'Опишите ваш заказ:', reply_markup=hideBoard)
-        bot.register_next_step_handler(mesg, loop5)
-    except Exception as e:      # works on python 3.x
-        debugToLog(f'Error №4 - {str(e)}')
-        bot.clear_step_handler_by_chat_id(message.chat.id)
-        bot.send_message(message.chat.id, str(e))
-
-def loop5(message):
-    try:
-        chat_id = message.chat.id
-        if f"{chat_id}_order" not in user_state_data:
-            raise Exception("Нужно начать по порядку с начала!")
-        user_state_data[f"{chat_id}_order"]['messages'].append(message.message_id)
-        keyboard = telebot.types.InlineKeyboardMarkup()
-        button_save = telebot.types.InlineKeyboardButton(text="Оплатить",
-                                                        callback_data='pay')
-        button_change = telebot.types.InlineKeyboardButton(text="Добавить описание или файл",
-                                                        callback_data='add_description')
-        keyboard.add(button_save, button_change)
-        print(user_state_data[f"{chat_id}_order"])
-        
-        bot.send_message(message.chat.id, 'Выберите действие:', reply_markup=keyboard)
-    except Exception as e:
-        user_state_data.pop(f"{chat_id}_order", None)
-        debugToLog(f'Error №5 - {str(e)}')
-        bot.send_message(message.chat.id, str(e))       
-
 
 
 @bot.pre_checkout_query_handler(func=lambda query: True)
@@ -160,15 +175,17 @@ def checkout(pre_checkout_query):
 def got_payment(message):
     try:
         chat_id = message.chat.id
-        TeleOrders.objects.create(userChatTelegramId=chat_id, cost=user_state_data[f"{chat_id}_order"]['cost'], name=user_state_data[f"{chat_id}_order"]['name'], description=user_state_data[f"{chat_id}_order"]['description'], messages=json.dumps(user_state_data[f"{chat_id}_order"]['messages']))
+        cached_data = cache.get(f'{chat_id}_order')
+        if cached_data is None:
+            raise Exception("Ошибка платежного сервиса, обратитесь к администрации!")
+        TeleOrders.objects.create(userChatTelegramId=chat_id, cost=cached_data['cost'], name=cached_data['name'], description=cached_data['description'], messages=json.dumps(cached_data['messages']))
 
         bot.send_message(message.chat.id,
                         'Оплата прошла успешно!\nПожалуйста поделитесь с нами номером Вашего телефона, нажав на /number\nДля проверки статуса заказа нажмите /user',
                         parse_mode='Markdown')
         
         bot.send_message(ADMIN_CHAT_ID, 'Поступил новый заказ\nДля просмотра последних 10 заказов нажмите /get_orders', parse_mode='Markdown') 
-
-        user_state_data.pop(f"{chat_id}_order", None)
+        
     except Exception as e:      # works on python 3.x
         debugToLog(f'Error №7 - {str(e)}') 
         bot.send_message(message.chat.id, str(e))  
