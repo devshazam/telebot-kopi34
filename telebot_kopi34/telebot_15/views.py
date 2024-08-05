@@ -28,7 +28,7 @@ ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
 LOG_NAME = os.getenv("LOG_NAME")
 
 bot = telebot.TeleBot(API_TOKEN)
-logging.basicConfig(filename=f'{LOG_NAME}.log', encoding='utf-8', level=logging.WARNING, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename=f'{LOG_NAME}.log', encoding='utf-8', level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 def debugToLog(text):
     logging.warning(f"{text}")
 
