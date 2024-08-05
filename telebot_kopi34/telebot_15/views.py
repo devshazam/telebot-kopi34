@@ -217,7 +217,8 @@ def clientId(message):
     try: 
         chat_id = message.chat.id
         cached_data = cache.get(f'{chat_id}_order')
-
+        if cached_data is None:
+            raise Exception("Нет данных!")
         bot.send_message(message.chat.id, f'На данный момент объект user_state_data содержит элементов: {json.dumps(cached_data)}')
     except Exception as e:      # works on python 3.x
         debugToLog(f'Error №d1 - {str(e)}')
