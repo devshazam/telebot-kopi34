@@ -94,7 +94,7 @@ def answer(message):
 
 
 @bot.callback_query_handler(func=lambda call: call.data == 'add_description')
-def save_btn(call):
+def addDescriptionCallback(call):
     try:
         message = call.message
         chat_id = message.chat.id
@@ -117,7 +117,7 @@ def save_btn(call):
      
 
 @bot.callback_query_handler(func=lambda call: call.data == 'cancel_pay')
-def save_btn(call):
+def cancelPayCallback(call):
     try:
         message = call.message
         cache.delete(f'{message.chat.id}_order')
@@ -128,7 +128,7 @@ def save_btn(call):
 
         
 @bot.callback_query_handler(func=lambda call: call.data == 'pay')
-def save_btn(call):
+def payCallback(call):
     try:
         message = call.message
         chat_id = message.chat.id
@@ -203,23 +203,6 @@ def got_payment(message):
 
 
 
-
-
-
-
-
-
-@bot.message_handler(commands=['diag'])
-def clientId(message):
-    try: 
-        chat_id = message.chat.id
-        cached_data = cache.get(f'{chat_id}_order')
-        if cached_data is None:
-            raise Exception("Нет данных!")
-        bot.send_message(message.chat.id, f'На данный момент объект user_state_data содержит элементов: {json.dumps(cached_data)}')
-    except Exception as e:      # works on python 3.x
-        debugToLog(f'Error №d1 - {str(e)}')
-        bot.send_message(message.chat.id, str(e))  
 
 
 
@@ -393,10 +376,16 @@ def userCommand(message):
 @bot.message_handler(commands=['admin'])
 def adminCommand(message):
     try: 
-        bot.send_message(message.chat.id, 'Привет администратор!'
+        bot.send_message(message.chat.id, 'Команды администратора:'
                                             '\n/user_phone_by_id - попросить клиента связаться по его id'
                                             '\n/get_orders - получить 10 последних заказов'
-                                            '\n/get_order_by_id - получить информацию о заказе по его id')
+                                            '\n/get_last_order - получить последний закас с описанием'
+                                            '\n'
+                                            '\nКоманды программиста:'
+                                            '\n/my_cache - получить свой кеш'
+                                            '\n/cache_keys - получить все ключи кеша'
+                                            '\n/add_db_item_from_cache - добавить заказ из кеша без оплаты (тестирование)'
+                                            )
     except Exception as e: 
          debugToLog(f'Error №15 - {str(e)}')
          bot.send_message(message.chat.id, str(e)) 
@@ -456,46 +445,111 @@ def getOrders(message):
 
 
 
-@bot.message_handler(commands=['get_order_by_id'])
+@bot.message_handler(commands=['get_last_order'])
 def getOrderByID(message):
     try: 
-        # chat_id = message.chat.id
-        # if chat_id == ADMIN_CHAT_ID:
-            mesg = bot.send_message(message.chat.id, 'Введите id заказа:')
-            bot.register_next_step_handler(mesg, loop2)
-        # else:
-            # bot.send_message(message.chat.id, 'Только администратор может использовать эту команду!')
+        chat_id = message.chat.id
+        if str(chat_id) in ADMIN_CHAT_ID.split():
+            if TeleOrders.objects.filter(doneStatus=False).exists():
+                useOrders = TeleOrders.objects.filter(doneStatus=False).order_by("-created_at").first()
+
+                bot.send_message (message.chat.id, f'id: {useOrders.id}, цена: {useOrders.cost}, название: {useOrders.name}, описание: {useOrders.description}') 
+
+                if len(json.loads(useOrders.messages)) > 0:
+                    bot.forward_messages(message.chat.id, useOrders.userChatTelegramId, json.loads(useOrders.messages))
+
+
+                linked_user = f'[Клиент](tg://user?id={useOrders.userChatTelegramId})'
+                bot.send_message(message.chat.id, f'{linked_user}',
+                parse_mode='MarkdownV2',
+                disable_web_page_preview=True)
+                
+                
+            else:
+                bot.send_message(message.chat.id, 'У Вас нет не выполненных заказов!')
+        else:
+            bot.send_message(message.chat.id, 'Только администратор может использовать эту команду!')
 
     except Exception as e:      # works on python 3.x
         debugToLog(f'Error №19 - {str(e)}')
         bot.clear_step_handler_by_chat_id(message.chat.id)
         bot.send_message(message.chat.id, str(e)) 
 
-def loop2(message):
-    try:
-        x1 = re.search(r"\d+", message.text)
-        if not x1 :
-            raise Exception("Значение id не корректное! Начните заново!")
-        x2 = int(x1.group())
-        if TeleOrders.objects.filter(id=x2).exists():
-            useOrders = TeleOrders.objects.get(id=x2)  
-
-            bot.send_message (message.chat.id, f'id: {useOrders.id}, цена: {useOrders.cost}, название: {useOrders.name}, описание: {useOrders.description}') 
-
-            if len(json.loads(useOrders.messages)) > 0:
-                bot.forward_messages(message.chat.id, useOrders.userChatTelegramId, json.loads(useOrders.messages))
 
 
-            linked_user = f'[Клиент](tg://user?id={useOrders.userChatTelegramId})'
-            bot.send_message(message.chat.id, f'{linked_user}',
-            parse_mode='MarkdownV2',
-            disable_web_page_preview=True)
-        else:
-            raise Exception("Такого id заказа не существует!")
+            # mesg = bot.send_message(message.chat.id, 'Введите id заказа:')
+            # bot.register_next_step_handler(mesg, loop2)
 
+# def loop2(message):
+#     try:
+#         x1 = re.search(r"\d+", message.text)
+#         if not x1 :
+#             raise Exception("Значение id не корректное! Начните заново!")
+#         x2 = int(x1.group())
+#         if TeleOrders.objects.filter(id=x2).exists():
+#             useOrders = TeleOrders.objects.get(id=x2)  
+
+#             bot.send_message (message.chat.id, f'id: {useOrders.id}, цена: {useOrders.cost}, название: {useOrders.name}, описание: {useOrders.description}') 
+
+#             if len(json.loads(useOrders.messages)) > 0:
+#                 bot.forward_messages(message.chat.id, useOrders.userChatTelegramId, json.loads(useOrders.messages))
+
+
+#             linked_user = f'[Клиент](tg://user?id={useOrders.userChatTelegramId})'
+#             bot.send_message(message.chat.id, f'{linked_user}',
+#             parse_mode='MarkdownV2',
+#             disable_web_page_preview=True)
+#         else:
+#             raise Exception("Такого id заказа не существует!")
+
+#     except Exception as e:      # works on python 3.x
+#         debugToLog(f'Error №20 - {str(e)}')
+#         bot.send_message(message.chat.id, str(e))
+
+
+
+@bot.message_handler(commands=['my_cache'])
+def diagFirst(message):
+    try: 
+        chat_id = message.chat.id
+        cached_data = cache.get(f'{chat_id}_order')
+        if cached_data is None:
+            raise Exception("Нет данных!")
+        bot.send_message(message.chat.id, f'На данный момент объект user_state_data содержит элементов: {json.dumps(cached_data)}')
     except Exception as e:      # works on python 3.x
-        debugToLog(f'Error №20 - {str(e)}')
-        bot.send_message(message.chat.id, str(e))
+        debugToLog(f'Error №d1 - {str(e)}')
+        bot.send_message(message.chat.id, str(e))  
+
+@bot.message_handler(commands=['cache_keys'])
+def diagKeys(message):
+    try: 
+        all_keys_data = cache.keys('*')
+ 
+        bot.send_message(message.chat.id, f'Ключи в кэше: {json.dumps(all_keys_data)}')
+    except Exception as e:      # works on python 3.x
+        debugToLog(f'Error №d1 - {str(e)}')
+        bot.send_message(message.chat.id, str(e))  
+
+@bot.message_handler(commands=['add_db_item_from_cache'])
+def diagAdd(message):
+    try: 
+        chat_id = message.chat.id
+        cached_data = cache.get(f'{chat_id}_order')
+        if cached_data is None:
+            raise Exception("Свой кеш пуст!")
+        TeleOrders.objects.create(userChatTelegramId=chat_id, cost=cached_data['cost'], name=cached_data['name'], description=cached_data['description'], messages=json.dumps(cached_data['messages']))
+        
+        cache.delete(f'{chat_id}_order')
+        bot.send_message(message.chat.id,
+                        'Данные внесены в БД',
+                        parse_mode='Markdown')
+    
+        
+    except Exception as e:      # works on python 3.x
+        debugToLog(f'Error №7 - {str(e)}') 
+        bot.send_message(message.chat.id, str(e))  
+
+
 
 
 
