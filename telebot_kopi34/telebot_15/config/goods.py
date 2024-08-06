@@ -55,7 +55,6 @@ goodsDict = {
     'cards_store': ['визитк', 'Визитки', 'https://telebot-app.kopi34.ru/cards/'],
     'badge_store': ['значк', 'Значки', 'https://telebot-app.kopi34.ru/badge/'],
 
-
     'tv_pereplet': ['переплет', [['Твердый переплет ', 'https://kopi34.ru/prices/20']]],
     'ksero': ['ксеро', [['Ксерокопия', 'https://kopi34.ru/prices/8']]],
     'scan': ['скан', [['Сканирование', 'https://kopi34.ru/prices/6']]],

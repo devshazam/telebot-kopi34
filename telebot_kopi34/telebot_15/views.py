@@ -28,7 +28,7 @@ ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
 LOG_NAME = os.getenv("LOG_NAME")
 
 bot = telebot.TeleBot(API_TOKEN)
-logging.basicConfig(filename=f'{LOG_NAME}.log', encoding='utf-8', level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename=f'{LOG_NAME}.log', encoding='utf-8', level=logging.WARNING, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 def debugToLog(text):
     logging.warning(f"{text}")
 
@@ -77,12 +77,13 @@ def answer(message):
 
         chat_id = message.chat.id
 
-        cache.set(f"{chat_id}_order", { 'name': x1['name'], 'description': x1["description"], 'cost': x1["value"], 'messages': []}, 3600)
-        
+        cache.set(f"{chat_id}_order", { 'state': 'paying', 'name': x1['name'], 'description': x1["description"], 'cost': x1["value"], 'messages': []}, 3600)
+
         keyboard = telebot.types.InlineKeyboardMarkup()
-        button_save = telebot.types.InlineKeyboardButton(text="Оплатить!", callback_data="pay")
-        button_save2 = telebot.types.InlineKeyboardButton(text="Добавить описание!", callback_data="add_description")
-        keyboard.add(button_save, button_save2)
+        button_pay = telebot.types.InlineKeyboardButton(text="Оплатить", callback_data='pay')
+        button_cancel = telebot.types.InlineKeyboardButton(text="Отменить заказ", callback_data='cancel_pay')
+        button_add = telebot.types.InlineKeyboardButton(text="Добавить описание или файл", callback_data='add_description')
+        keyboard.add(button_pay, button_cancel, button_add)
 
         bot.send_message(chat_id, "Данные получены!",  reply_markup=hideBoard)
         bot.send_message(chat_id, f'Ваш заказ стоит: {x1["value"]}', reply_markup=keyboard) 
@@ -98,45 +99,34 @@ def save_btn(call):
         message = call.message
         chat_id = message.chat.id
         bot.edit_message_text(chat_id=message.chat.id, message_id=message.message_id, text="Выбор сделан!")
-        mesg = bot.send_message(message.chat.id, 'Опишите ваш заказ или добавьте файл:', reply_markup=hideBoard)
 
-        debugToLog(f'Error №q1')
-
-        bot.register_next_step_handler(mesg, loop5)
-        debugToLog(f'Error №q2')
-    except Exception as e:
-        debugToLog(f'Error №q3')
-        # debugToLog(f'Error №4 - {str(e)}')
-        
-        bot.clear_step_handler_by_chat_id(message.chat.id)
-        bot.send_message(message.chat.id, str(e))
-
-def loop5(message):
-    try:
-        debugToLog(f'Error №q4')
-        chat_id = message.chat.id
         cached_data = cache.get(f'{chat_id}_order')
         if cached_data is None:
-            raise Exception("Нужно начать по порядку с начала!")
-        cached_data['messages'].append(message.message_id)
-        debugToLog(f'Error №q5')
-        cache.set(f"{chat_id}_order", cached_data, 3600)
-        debugToLog(f'Error №q6')
-        keyboard = telebot.types.InlineKeyboardMarkup()
-        button_save = telebot.types.InlineKeyboardButton(text="Оплатить",
-                                                        callback_data='pay')
-        button_change = telebot.types.InlineKeyboardButton(text="Добавить описание или файл",
-                                                        callback_data='add_description')
-        keyboard.add(button_save, button_change)
-        debugToLog(f'Error №q7')
-        bot.send_message(message.chat.id, 'Выберите действие:', reply_markup=keyboard)
+            raise Exception("Время истекло, начните заново!")
+        if not cached_data['state'] == 'description':
+            cached_data['state'] = 'description'
+            cache.set(f"{chat_id}_order", cached_data, 3600)
+
+        bot.send_message(message.chat.id, 'Опишите ваш заказ или добавьте файл:', reply_markup=hideBoard)
+
+
     except Exception as e:
-        debugToLog(f'Error №q8')
-        # debugToLog(f'Error №5 - {str(e)}')
-        bot.send_message(message.chat.id, str(e))       
+        debugToLog(f'Error №q3')
+        bot.send_message(message.chat.id, str(e))
 
+     
 
+@bot.callback_query_handler(func=lambda call: call.data == 'cancel_pay')
+def save_btn(call):
+    try:
+        message = call.message
+        cache.delete(f'{message.chat.id}_order')
+        bot.send_message(message.chat.id, 'Платеж отменен!', reply_markup=hideBoard)
+    except Exception as e:      # works on python 3.x
+        debugToLog(f'Error №3 - {str(e)}')
+        bot.send_message(message.chat.id, str(e))
 
+        
 @bot.callback_query_handler(func=lambda call: call.data == 'pay')
 def save_btn(call):
     try:
@@ -147,8 +137,8 @@ def save_btn(call):
                              text='⚠️Оплата работает только на смартфоне⚠️!')  
         cached_data = cache.get(f'{chat_id}_order')
         if cached_data is None:
-            raise Exception("Оплата не работает на Компьютере, только на смартфоне!")
-        
+            raise Exception("Время истекло, начните заново!")
+
         prices = [LabeledPrice(label=f'{cached_data["name"]}', amount=int(cached_data['cost'])*100)]
 
         bot.send_invoice(
@@ -162,7 +152,7 @@ def save_btn(call):
             start_parameter='kopi34_start_param',)
     except Exception as e:      # works on python 3.x
         
-        debugToLog(f'Error №3 - {str(e)}')
+        debugToLog(f'Error №e3 - {str(e)}')
         bot.send_message(message.chat.id, str(e))
 
 
@@ -184,7 +174,8 @@ def got_payment(message):
         if cached_data is None:
             raise Exception("Ошибка платежного сервиса, обратитесь к администрации!")
         TeleOrders.objects.create(userChatTelegramId=chat_id, cost=cached_data['cost'], name=cached_data['name'], description=cached_data['description'], messages=json.dumps(cached_data['messages']))
-
+        
+        cache.delete(f'{chat_id}_order')
         bot.send_message(message.chat.id,
                         'Оплата прошла успешно!\nПожалуйста поделитесь с нами номером Вашего телефона, нажав на /number\nДля проверки статуса заказа нажмите /user',
                         parse_mode='Markdown')
@@ -252,69 +243,76 @@ def clientId(message):
 
 # USER COMANDS:
 @bot.message_handler(commands=['start'])
-def clientId(message):
+def startCommand(message):
     try: 
-
         bot.send_message(message.chat.id, 'Здравствуйте, я робот компании kopi34.ru!'
                                             '\nЯ могу отвечаю на вопросы о товарах и ценах и совершенных заказах!'
                                             '\nКоманды:'
                                             '\n/contacts - вывод списка контактов и график работы'
                                             '\n/number - добавить номер телефона'
                                             '\n/help - вывод списка всех команд'
-                                            '\n/i_can - списка всех товаров') # Duplicate with a message that the user will now send his phone number to the bot (just in case, but this is not necessary)
-    except Exception as e:      # works on python 3.x
+                                            '\n/i_can - списка всех товаров')
+    except Exception as e:
         debugToLog(f'Error №8 - {str(e)}')
         bot.send_message(message.chat.id, str(e))  
 
 
 @bot.message_handler(commands=['i_can'])
-def clientId(message):
+def canCommand(message):
     try: 
-        x1 = ''
-        for x in goodsArray:
-            x1 += f'{x[2]}\n'
-        bot.send_message(message.chat.id, x1) # Duplicate with a message that the user will now send his phone number to the bot (just in case, but this is not necessary)
+        bot.send_message(message.chat.id, 'Я могу продавать:'
+                                            '\n🛒 Визитки'
+                                            '\n🛒 Баннеры'
+                                            '\n🛒 Самоклейки'
+                                            '\n🛒 Значки\n'
+                                            '\nЯ могу предоставлять прайсы по:'
+                                            '\nℹ️ Цене Ламинирования'
+                                            '\nℹ️ Цене Ксерокопирования'
+                                            '\nℹ️ Цене Твердого переплета'
+                                            '\nℹ️ Цене Распечатки чертежей'
+                                            '\nℹ️ Цене Брошюровки'
+                                            '\nℹ️ Цене Фото на документы'
+                                            '\nℹ️ Цене Ризографии'
+                                            '\nℹ️ Цене Печати на холсте'
+                                            '\nℹ️ Цене Сайтов'
+                                            '\nℹ️ Цене Распечатки'
+                                            '\n'
+                                            '\nПросто введите название интересующего Вас товара!'
+                                            )
     except Exception as e:      # works on python 3.x
         debugToLog(f'Error №9 - {str(e)}')
         bot.send_message(message.chat.id, str(e))  
 
 
 @bot.message_handler(commands=['help'])
-def clientId(message):
+def helpCommand(message):
     try: 
-        # bot.sendMessage(chatId, '<b>TEST</b>', {parse_mode: 'HTML'})
-        bot.send_message(message.chat.id, 'Здравствуйте, я @kopi34_bot!'
+        bot.send_message(message.chat.id, 'Здравствуйте, я telegram bot!'
                                             '\nЯ отвечаю на вопросы о товарах, ценах и заказах!'
-                                            '\nKОМАНДЫ (нажмите для исполнения):'
+                                            '\nВот мои команды, ⚠️нажмите для исполнения:'
                                             '\n/contacts - вывод списка контактов и график работы'
-                                            '\n/user - вывод списка не выполненных заказов'
+                                            '\n/user - вывод списка Ваших заказов'
                                             '\n/number - поделиться номером телефона для связи!5'
                                             '\n/help - вывод списка всех команд'
-                                            '\n/i_can - списка всех товаров'
-                                            '\nАдминистратор: @kopiprint34')
-    except Exception as e:      # works on python 3.x
+                                            '\n/i_can - вывод списка всех товаров'
+                                            '\nПереход к администратору: @kopiprint34')
+    except Exception as e:
          debugToLog(f'Error №10 - {str(e)}')
          bot.send_message(message.chat.id, str(e))  
         
 
 
 @bot.message_handler(commands=['contacts'])
-def clientId(message):
+def contactsCommand(message):
     try: 
-
         bot.send_message(message.chat.id, '<b>Наши контакты:</b>\nСайт: https://kopi34.ru\nТелефон: +7(909) 380-25-19\nТелеграм: @kopiprint34\nОфис №1: Петропавловская 87\nОфис №2: Казахская 25\nГрафик работы: Пн-Пт 9:00-19:00', parse_mode='html') 
-    except Exception as e:      # works on python 3.x
+    except Exception as e:
          debugToLog(f'Error №11 - {str(e)}')
          bot.send_message(message.chat.id, str(e))  
         
 
-
-
-
-
-# Запрос на получение номера телефона
-@bot.message_handler (commands = ['number']) # Announced a branch to work on the <strong> number </strong> command
-def phone (message):
+@bot.message_handler (commands = ['number'])
+def numberCommand(message):
     try:
         keyboard = types.ReplyKeyboardMarkup (row_width = 1, resize_keyboard = True) # Connect the keyboard
         button_phone = types.KeyboardButton (text = "Разрешить!", request_contact = True) # Specify the name of the button that the user will see
@@ -324,10 +322,9 @@ def phone (message):
         debugToLog(f'Error №12 - {str(e)}')
         bot.send_message(message.chat.id, str(e))  
  
-@bot.message_handler (content_types = ['contact']) # Announced a branch in which we prescribe logic in case the user decides to send a phone number :)
-def contact (message):
+@bot.message_handler (content_types = ['contact'])
+def contact(message):
     try:
-        message_id = message.message_id  
         if message.contact is not None: # If the sent object <strong> contact </strong> is not zero
             if Users.objects.filter(userChatTelegramId=message.contact.user_id).exists():
                 getDay = Users.objects.filter(userChatTelegramId=message.contact.user_id).get()
@@ -348,9 +345,8 @@ def contact (message):
 
 
 @bot.message_handler(commands=['user'])
-def clientId(message):
+def userCommand(message):
     try: 
-
         if TeleOrders.objects.filter(userChatTelegramId=message.chat.id, doneStatus=False).exists():
             useOrders = TeleOrders.objects.filter(userChatTelegramId=message.chat.id)   
             x1 = ''
@@ -395,11 +391,9 @@ def clientId(message):
 
 # ADMIN COMMANDS:
 @bot.message_handler(commands=['admin'])
-def clientId(message):
+def adminCommand(message):
     try: 
-        # bot.sendMessage(chatId, '<b>TEST</b>', {parse_mode: 'HTML'})
         bot.send_message(message.chat.id, 'Привет администратор!'
-                                            # '\n/alert_done_orders - оповестить клиентов о готовности заказа'
                                             '\n/user_phone_by_id - попросить клиента связаться по его id'
                                             '\n/get_orders - получить 10 последних заказов'
                                             '\n/get_order_by_id - получить информацию о заказе по его id')
@@ -409,10 +403,10 @@ def clientId(message):
 
 
 @bot.message_handler(commands=['user_phone_by_id'])
-def clientId(message):
+def userPhoneById(message):
     try: 
         chat_id = message.chat.id
-        if chat_id == ADMIN_CHAT_ID:
+        if str(chat_id) in ADMIN_CHAT_ID.split():
             mesg = bot.send_message(message.chat.id, 'Введите id клиента:')
             bot.register_next_step_handler(mesg, loop1)
         else:
@@ -430,8 +424,6 @@ def loop1(message):
         x2 = int(x1.group())
         bot.send_message(x2, 'Уважаемый клиент, пожалуйста поделитесь с нами вашим номером телефона для уточнения заказа, нажав на /number')
         bot.send_message(message.chat.id, 'Сообщение отправлено клиенту. Вы получите уведомление как только он поделится своим телефоном, а также запись появится в базе данных!')
-
-
     except Exception as e:      # works on python 3.x
         debugToLog(f'Error №17 - {str(e)}')
         bot.send_message(message.chat.id, str(e))
@@ -439,10 +431,10 @@ def loop1(message):
 
 
 @bot.message_handler(commands=['get_orders'])
-def clientId(message):
+def getOrders(message):
     try: 
         chat_id = message.chat.id
-        if chat_id == ADMIN_CHAT_ID:
+        if str(chat_id) in ADMIN_CHAT_ID.split():
             if TeleOrders.objects.filter(doneStatus=False).exists():
                 useOrders = TeleOrders.objects.filter(doneStatus=False).order_by("-created_at")[0:10].all().values()
                 print(useOrders)
@@ -450,7 +442,9 @@ def clientId(message):
                 for x in useOrders:
                     x3 += f'id: {x["id"]}; Цена: {x["cost"]}; Оплачено: {"Да" if x["payStatus"] else "Нет"}; Готово: {"Да" if x["doneStatus"] else "Нет"}.\n'
 
-                bot.send_message(message.chat.id, x3) 
+                bot.send_message(message.chat.id, x3)
+            else:
+                bot.send_message(message.chat.id, 'У Вас нет не выполненных заказов!')
         else:
             bot.send_message(message.chat.id, 'Только администратор может использовать эту команду!')
 
@@ -463,7 +457,7 @@ def clientId(message):
 
 
 @bot.message_handler(commands=['get_order_by_id'])
-def clientId(message):
+def getOrderByID(message):
     try: 
         # chat_id = message.chat.id
         # if chat_id == ADMIN_CHAT_ID:
@@ -529,23 +523,38 @@ def loop2(message):
 
 # Диспетчер
 @bot.message_handler(content_types=['text'])
-def func(message):
+def textHandler(message):
     try:
+        chat_id = message.chat.id
         bot.send_message(message.chat.id, '...', reply_markup=hideBoard)
-        x1 = 0
-        for x in goodsArray:
-            if re.search(fr"{x[1]}", message.text, re.IGNORECASE):
 
-                    keyboard = telebot.types.InlineKeyboardMarkup()
-                    button_save = telebot.types.InlineKeyboardButton(text="Подтвердить!", callback_data=f'{x[0]}')
-                    keyboard.add(button_save)
-                    bot.send_message(message.chat.id, f'Вы хотите -  {x[2]}?', reply_markup=keyboard)
-                    x1 = 1
-                    break
+        cached_state_data = cache.get(f'{chat_id}_order')
+        if cached_state_data is None:
+            x1 = 0
+            for x in goodsArray:
+                if re.search(fr"{x[1]}", message.text, re.IGNORECASE):
 
-        if x1 == 0:
-            bot.send_message(message.chat.id, 'Возможно допущена опечатка или в моей базе пока нет такого ТОВАРА!'
+                        keyboard = telebot.types.InlineKeyboardMarkup()
+                        button_save = telebot.types.InlineKeyboardButton(text="Подтвердить!", callback_data=f'{x[0]}')
+                        keyboard.add(button_save)
+                        bot.send_message(message.chat.id, f'Вы хотите -  {x[2]}?', reply_markup=keyboard)
+                        x1 = 1
+                        break
+
+            if x1 == 0:
+                bot.send_message(message.chat.id, 'Возможно допущена опечатка или в моей базе пока нет такого ТОВАРА!'
                                                 '\n/help - нажмите, если Вам нужна помощь!')
+        else:
+            if cached_state_data['state'] == 'description':
+                cached_state_data['messages'].append(message.message_id)
+                cache.set(f"{chat_id}_order", cached_state_data, 3600)
+                
+            keyboard = telebot.types.InlineKeyboardMarkup()
+            button_pay = telebot.types.InlineKeyboardButton(text="Оплатить", callback_data='pay')
+            button_cancel = telebot.types.InlineKeyboardButton(text="Отменить заказ", callback_data='cancel_pay')
+            button_add = telebot.types.InlineKeyboardButton(text="Добавить описание или файл", callback_data='add_description')
+            keyboard.add(button_pay, button_cancel, button_add)
+            bot.send_message(message.chat.id, f'Выберите:', reply_markup=keyboard)
 
     except Exception as e:      # works on python 3.x
          debugToLog(f'Error №21 - {str(e)}')
@@ -554,9 +563,19 @@ def func(message):
 
 
 
+
+
+
+
+
+
+
+
+
+
 # Для товаров, которые скоро появятся!
 @bot.callback_query_handler(func=lambda call: call.data == 'soon')
-def clientId(call):
+def soonCallback(call):
     try:
         bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="Выбор сделан!")
         bot.send_message(call.message.chat.id, 'Для данного товара СКОРО будет подготовлен прайс-лист!', parse_mode="Markdown")
@@ -567,7 +586,7 @@ def clientId(call):
 
 # Для товаров в магазине
 @bot.callback_query_handler(func=lambda call: call.data in ['cards_store', 'stickers_store', 'banner_store', 'badge_store'])
-def clientId(call):
+def storeCallback(call):
     try:
         message = call.message
         bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="Выбор сделан!")
@@ -583,7 +602,7 @@ def clientId(call):
 
 # Для товаров по ссылке
 @bot.callback_query_handler(func=lambda call: call.data in ['tv_pereplet', 'chertej', 'scan', 'ksero', 'lamin', 'brosh', 'photo_doc', 'rizograf', 'pechat_3d', 'pechat_holst', 'sites', 'pechat_main', ])
-def agent(call):
+def priceCallback(call):
     try:
         message = call.message
         bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="Выбор сделан!")
