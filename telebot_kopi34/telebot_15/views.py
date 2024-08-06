@@ -103,33 +103,35 @@ def save_btn(call):
         debugToLog(f'Error №q1')
 
         bot.register_next_step_handler(mesg, loop5)
-    except Exception as e:
-        # debugToLog(f'Error №4 - {str(e)}')
         debugToLog(f'Error №q2')
+    except Exception as e:
+        debugToLog(f'Error №q3')
+        # debugToLog(f'Error №4 - {str(e)}')
         
         bot.clear_step_handler_by_chat_id(message.chat.id)
         bot.send_message(message.chat.id, str(e))
 
 def loop5(message):
     try:
+        debugToLog(f'Error №q4')
         chat_id = message.chat.id
         cached_data = cache.get(f'{chat_id}_order')
         if cached_data is None:
             raise Exception("Нужно начать по порядку с начала!")
         cached_data['messages'].append(message.message_id)
-        debugToLog(f'Error №q4')
-        cache.set(f"{chat_id}_order", cached_data, 3600)
         debugToLog(f'Error №q5')
+        cache.set(f"{chat_id}_order", cached_data, 3600)
+        debugToLog(f'Error №q6')
         keyboard = telebot.types.InlineKeyboardMarkup()
         button_save = telebot.types.InlineKeyboardButton(text="Оплатить",
                                                         callback_data='pay')
         button_change = telebot.types.InlineKeyboardButton(text="Добавить описание или файл",
                                                         callback_data='add_description')
         keyboard.add(button_save, button_change)
-        debugToLog(f'Error №q6')
+        debugToLog(f'Error №q7')
         bot.send_message(message.chat.id, 'Выберите действие:', reply_markup=keyboard)
     except Exception as e:
-        debugToLog(f'Error №q3')
+        debugToLog(f'Error №q8')
         # debugToLog(f'Error №5 - {str(e)}')
         bot.send_message(message.chat.id, str(e))       
 
