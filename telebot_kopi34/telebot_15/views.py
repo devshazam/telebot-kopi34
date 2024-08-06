@@ -42,7 +42,7 @@ hideBoard = types.ReplyKeyboardRemove()  # if sent as reply_markup, will hide th
 
 
 
-# https://api.telegram.org/bot7397048375:AAFUc0nI6IQpsIgIWWW6ccU-gkgKSrLkMKQ/setWebhook?url=https://bf06-80-90-179-8.ngrok-free.app/
+# https://api.telegram.org/bot7397048375:AAFUc0nI6IQpsIgIWWW6ccU-gkgKSrLkMKQ/setWebhook?url=https://03ac-80-90-179-8.ngrok-free.app/
 # https://api.telegram.org/bot7397048375:AAFUc0nI6IQpsIgIWWW6ccU-gkgKSrLkMKQ/deleteWebhook?url=https://089e-80-90-179-8.ngrok-free.app/
 @csrf_exempt
 def index(request):
@@ -99,9 +99,13 @@ def save_btn(call):
         chat_id = message.chat.id
         bot.edit_message_text(chat_id=message.chat.id, message_id=message.message_id, text="Выбор сделан!")
         mesg = bot.send_message(message.chat.id, 'Опишите ваш заказ или добавьте файл:', reply_markup=hideBoard)
+
+        debugToLog(f'Error №q1')
+
         bot.register_next_step_handler(mesg, loop5)
     except Exception as e:
-        debugToLog(f'Error №4 - {str(e)}')
+        # debugToLog(f'Error №4 - {str(e)}')
+        debugToLog(f'Error №q2')
         
         bot.clear_step_handler_by_chat_id(message.chat.id)
         bot.send_message(message.chat.id, str(e))
@@ -113,20 +117,20 @@ def loop5(message):
         if cached_data is None:
             raise Exception("Нужно начать по порядку с начала!")
         cached_data['messages'].append(message.message_id)
-
+        debugToLog(f'Error №q4')
         cache.set(f"{chat_id}_order", cached_data, 3600)
-
+        debugToLog(f'Error №q5')
         keyboard = telebot.types.InlineKeyboardMarkup()
         button_save = telebot.types.InlineKeyboardButton(text="Оплатить",
                                                         callback_data='pay')
         button_change = telebot.types.InlineKeyboardButton(text="Добавить описание или файл",
                                                         callback_data='add_description')
         keyboard.add(button_save, button_change)
-        
+        debugToLog(f'Error №q6')
         bot.send_message(message.chat.id, 'Выберите действие:', reply_markup=keyboard)
     except Exception as e:
-        
-        debugToLog(f'Error №5 - {str(e)}')
+        debugToLog(f'Error №q3')
+        # debugToLog(f'Error №5 - {str(e)}')
         bot.send_message(message.chat.id, str(e))       
 
 
