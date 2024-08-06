@@ -562,6 +562,32 @@ def textHandler(message):
         
 
 
+@bot.message_handler(content_types=['document', 'sticker', 'video', 'photo', 'voice', 'audio', 'location'])
+def fileHandler(message):
+    try:
+        chat_id = message.chat.id
+        bot.send_message(message.chat.id, '...', reply_markup=hideBoard)
+
+        cached_state_data = cache.get(f'{chat_id}_order')
+        if cached_state_data is None:
+
+            bot.send_message(message.chat.id, 'Возможно допущена опечатка или в моей базе пока нет такого ТОВАРА!'
+                                                '\n/help - нажмите, если Вам нужна помощь!')
+        else:
+            if cached_state_data['state'] == 'description':
+                cached_state_data['messages'].append(message.message_id)
+                cache.set(f"{chat_id}_order", cached_state_data, 3600)
+                
+            keyboard = telebot.types.InlineKeyboardMarkup()
+            button_pay = telebot.types.InlineKeyboardButton(text="Оплатить", callback_data='pay')
+            button_cancel = telebot.types.InlineKeyboardButton(text="Отменить заказ", callback_data='cancel_pay')
+            button_add = telebot.types.InlineKeyboardButton(text="Добавить описание или файл", callback_data='add_description')
+            keyboard.add(button_pay, button_cancel, button_add)
+            bot.send_message(message.chat.id, f'Выберите:', reply_markup=keyboard)
+
+    except Exception as e:      # works on python 3.x
+         debugToLog(f'Error №121 - {str(e)}')
+         bot.send_message(message.chat.id, str(e))
 
 
 
