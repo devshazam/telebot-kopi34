@@ -180,7 +180,7 @@ def got_payment(message):
                         'Оплата прошла успешно!\nПожалуйста поделитесь с нами номером Вашего телефона, нажав на /number\nДля проверки статуса заказа нажмите /user',
                         parse_mode='Markdown')
         
-        bot.send_message(1449707152, 'Поступил новый заказ', parse_mode='Markdown') 
+        bot.send_message(1449707152, 'Поступил новый заказ') 
         
     except Exception as e:      # works on python 3.x
         debugToLog(f'Error №7 - {str(e)}') 
