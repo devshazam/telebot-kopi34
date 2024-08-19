@@ -395,7 +395,7 @@ def adminCommand(message):
 def userPhoneById(message):
     try: 
         chat_id = message.chat.id
-        if str(chat_id) in ADMIN_CHAT_ID.split():
+        if str(chat_id) == ADMIN_CHAT_ID:
             mesg = bot.send_message(message.chat.id, 'Введите id клиента:')
             bot.register_next_step_handler(mesg, loop1)
         else:
@@ -423,7 +423,7 @@ def loop1(message):
 def getOrders(message):
     try: 
         chat_id = message.chat.id
-        if str(chat_id) in ADMIN_CHAT_ID.split():
+        if str(chat_id) == ADMIN_CHAT_ID:
             if TeleOrders.objects.filter(doneStatus=False).exists():
                 useOrders = TeleOrders.objects.filter(doneStatus=False).order_by("-created_at")[0:10].all().values()
                 print(useOrders)
@@ -449,7 +449,7 @@ def getOrders(message):
 def getOrderByID(message):
     try: 
         chat_id = message.chat.id
-        if str(chat_id) in ADMIN_CHAT_ID.split():
+        if str(chat_id) == ADMIN_CHAT_ID:
             if TeleOrders.objects.filter(doneStatus=False).exists():
                 useOrders = TeleOrders.objects.filter(doneStatus=False).order_by("-created_at").first()
 
